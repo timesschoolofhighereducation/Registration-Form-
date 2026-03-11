@@ -145,7 +145,12 @@ export function RegistrationForm() {
       onSubmit={handleSubmit}
       className="flex flex-col gap-8 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-10"
     >
-      <header className="text-center">
+      <header className="flex flex-col items-center text-center">
+        <img
+          src="/tshelogo.jpg"
+          alt="TIMES School of Higher Education"
+          className="mb-4 h-20 w-auto object-contain sm:h-24"
+        />
         <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-[#f01923]" />
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           TIMES SCHOOL OF HIGHER EDUCATION
