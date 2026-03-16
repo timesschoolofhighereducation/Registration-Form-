@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { RegistrationInput } from "@/lib/validation";
 import { registrationSchema } from "@/lib/validation";
+import type { FormLanguage } from "@/lib/translations";
+import { translations } from "@/lib/translations";
 
 type FieldErrors = Partial<Record<keyof RegistrationInput, string>>;
 
@@ -41,18 +43,92 @@ export function RegistrationForm() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [profileDragOver, setProfileDragOver] = useState(false);
   const [receiptDragOver, setReceiptDragOver] = useState(false);
+  const [language, setLanguage] = useState<FormLanguage>("sinhala");
+  const [showPreview, setShowPreview] = useState(false);
+  const [activeImageMenu, setActiveImageMenu] = useState<"profile" | "receipt" | null>(null);
+  const [profileImageLoading, setProfileImageLoading] = useState(false);
+  const [receiptImageLoading, setReceiptImageLoading] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type, checked } = e.target;
+    // Any edit should hide the preview so user reviews again
+    if (showPreview) setShowPreview(false);
     setValues((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const processImageFile = (
+  const fileToDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          resolve(result);
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const approximateDataUrlSize = (dataUrl: string): number => {
+    const base64 = dataUrl.split(",")[1] ?? "";
+    return Math.ceil((base64.length * 3) / 4);
+  };
+
+  const compressImage = async (file: File, maxBytes: number): Promise<string> => {
+    const dataUrl = await fileToDataURL(file);
+    const img = new Image();
+
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height && width > maxDim) {
+          height = (height * maxDim) / width;
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = (width * maxDim) / height;
+          height = maxDim;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let quality = 0.8;
+        let result = canvas.toDataURL("image/jpeg", quality);
+        let size = approximateDataUrlSize(result);
+
+        while (size > maxBytes && quality > 0.3) {
+          quality -= 0.15;
+          result = canvas.toDataURL("image/jpeg", quality);
+          size = approximateDataUrlSize(result);
+        }
+
+        resolve(result);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = dataUrl;
+    });
+  };
+
+  const processImageFile = async (
     file: File | undefined,
     field: "profileImageBase64" | "bankReceiptBase64"
   ) => {
@@ -61,27 +137,42 @@ export function RegistrationForm() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setSubmitError("Images must be 2 MB or smaller.");
-      return;
-    }
+    const setLoading =
+      field === "profileImageBase64" ? setProfileImageLoading : setReceiptImageLoading;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        setValues((prev) => ({ ...prev, [field]: result }));
+    setLoading(true);
+    setSubmitError(null);
+
+    try {
+      const MAX_BYTES = 2 * 1024 * 1024;
+      let dataUrl: string;
+
+      if (file.size > MAX_BYTES) {
+        dataUrl = await compressImage(file, MAX_BYTES);
+      } else {
+        dataUrl = await fileToDataURL(file);
       }
-    };
-    reader.readAsDataURL(file);
+
+      if (!dataUrl) {
+        setSubmitError("Could not process image. Please try another file.");
+        return;
+      }
+
+      setValues((prev) => ({ ...prev, [field]: dataUrl }));
+    } catch (error) {
+      setSubmitError("Failed to process image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleFileChange = (
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     field: "profileImageBase64" | "bankReceiptBase64"
   ) => {
     const file = e.target.files?.[0];
-    processImageFile(file, field);
+    await processImageFile(file, field);
+    setActiveImageMenu(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,6 +193,16 @@ export function RegistrationForm() {
     }
 
     setErrors({});
+    // First successful validation: show preview instead of submitting
+    if (!showPreview) {
+      setShowPreview(true);
+      return;
+    }
+
+    await submitForm();
+  };
+
+  const submitForm = async () => {
     setSubmitting(true);
 
     try {
@@ -122,11 +223,19 @@ export function RegistrationForm() {
       }
 
       setSubmitSuccess(true);
+      setShowPreview(false);
       setValues(initialValues);
     } catch (error) {
       setSubmitError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openFilePicker = (targetId: string) => {
+    const el = document.getElementById(targetId) as HTMLInputElement | null;
+    if (el) {
+      el.click();
     }
   };
 
@@ -158,6 +267,30 @@ export function RegistrationForm() {
         <p className="mt-2 text-base font-medium text-slate-600">
           Student Registration
         </p>
+        <div className="mt-4 flex gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
+          <button
+            type="button"
+            onClick={() => setLanguage("sinhala")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              language === "sinhala"
+                ? "bg-[#2d4084] text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            සිංහල
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage("tamil")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              language === "tamil"
+                ? "bg-[#2d4084] text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            தமிழ்
+          </button>
+        </div>
       </header>
 
       {submitError && (
@@ -177,10 +310,10 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             1
           </span>
-          Programme Selection / <span className="font-normal text-slate-600">පාඨමාලා තේරීම</span>
+          Programme Selection / <span className="font-normal text-slate-600">{translations.programmeSelection[language]}</span>
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          Please choose the program you are registering for / කරුණාකර ඔබ ලියාපදිංචි වන පාඨමාලාව තෝරාගන්න
+          Please choose the program you are registering for / {translations.programmeSelectionDesc[language]}
         </p>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
@@ -323,12 +456,12 @@ export function RegistrationForm() {
             2
           </span>
           Personal Information /{" "}
-          <span className="font-normal text-slate-600">පෞද්ගලික තොරතුරු</span>
+          <span className="font-normal text-slate-600">{translations.personalInfo[language]}</span>
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Full Name / <span className="font-normal text-slate-500">සම්පූර්ණ නම</span>
+              Full Name / <span className="font-normal text-slate-500">{translations.fullName[language]}</span>
             </label>
             <input
               type="text"
@@ -342,7 +475,7 @@ export function RegistrationForm() {
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Name with Initials /{" "}
-              <span className="font-normal text-slate-500">මුලකුරු සමග නම</span>
+              <span className="font-normal text-slate-500">{translations.nameWithInitials[language]}</span>
             </label>
             <input
               type="text"
@@ -355,7 +488,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Date of Birth / <span className="font-normal text-slate-500">උපන් දිනය</span>
+              Date of Birth / <span className="font-normal text-slate-500">{translations.dateOfBirth[language]}</span>
             </label>
             <input
               type="date"
@@ -368,7 +501,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <span className="block text-sm font-medium text-slate-700">
-              Gender / <span className="font-normal text-slate-500">ස්ත්‍රී - පුරුෂ භාවය</span>
+              Gender / <span className="font-normal text-slate-500">{translations.gender[language]}</span>
             </span>
             <div className="mt-1 flex gap-4">
               {[
@@ -392,7 +525,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              NIC / <span className="font-normal text-slate-500">ජා.හැ. අංකය</span>
+              NIC / <span className="font-normal text-slate-500">{translations.nic[language]}</span>
             </label>
             <input
               type="text"
@@ -408,7 +541,7 @@ export function RegistrationForm() {
               Profile Photo (optional)
             </label>
             <div
-              className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
+              className={`relative mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
                 profileDragOver ? "border-[#2d4084] bg-[#2d4084]/5" : "border-slate-200 bg-slate-50/50"
               }`}
               onDragOver={(e) => {
@@ -424,7 +557,9 @@ export function RegistrationForm() {
                 setProfileDragOver(false);
                 const file = e.dataTransfer.files?.[0];
                 processImageFile(file, "profileImageBase64");
+                setActiveImageMenu(null);
               }}
+              onClick={() => setActiveImageMenu("profile")}
             >
               <input
                 key={values.profileImageBase64 ? "has-profile" : "no-profile"}
@@ -434,15 +569,67 @@ export function RegistrationForm() {
                 className="sr-only"
                 id="profile-image-input"
               />
-              <label
-                htmlFor="profile-image-input"
-                className="cursor-pointer font-medium text-[#2d4084] hover:opacity-80"
-              >
-                Click to upload
-              </label>
-              <p className="mt-1 text-slate-500">
-                or drag and drop an image (max 2 MB)
-              </p>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => handleFileChange(e, "profileImageBase64")}
+                className="sr-only"
+                id="profile-image-camera-input"
+              />
+              {profileImageLoading ? (
+                <p className="mt-1 text-slate-500">
+                  Uploading & optimizing image…
+                </p>
+              ) : (
+                <p className="mt-1 text-slate-500">
+                  Tap to choose image, or drag and drop (max 2 MB).
+                </p>
+              )}
+
+              {activeImageMenu === "profile" && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10">
+                  <div className="w-full max-w-xs rounded-xl bg-white p-3 text-xs shadow-lg ring-1 ring-slate-200">
+                    <p className="mb-2 text-[11px] font-semibold text-slate-800">
+                      Select profile photo
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageMenu(null);
+                          openFilePicker("profile-image-input");
+                        }}
+                        className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left font-medium text-[#2d4084] hover:bg-slate-100"
+                      >
+                        Choose from device / gallery
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageMenu(null);
+                          openFilePicker("profile-image-camera-input");
+                        }}
+                        className="w-full rounded-lg bg-[#2d4084] px-3 py-2 text-left font-medium text-white hover:bg-[#25336b]"
+                      >
+                        Take photo with camera
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageMenu(null);
+                      }}
+                      className="mt-2 w-full rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               {values.profileImageBase64 && (
                 <div className="mt-3 flex flex-col items-center gap-2">
                   <p className="text-[11px] font-medium text-[#2d4084]">Preview</p>
@@ -472,12 +659,12 @@ export function RegistrationForm() {
             3
           </span>
           Contact Information /{" "}
-          <span className="font-normal text-slate-600">සම්බන්ධ වියහැකි තොරතුරු</span>
+          <span className="font-normal text-slate-600">{translations.contactInfo[language]}</span>
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
-              Address / <span className="font-normal text-slate-500">ලිපිනය</span>
+              Address / <span className="font-normal text-slate-500">{translations.address[language]}</span>
             </label>
             <textarea
               name="address"
@@ -491,7 +678,7 @@ export function RegistrationForm() {
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Mobile Number /{" "}
-              <span className="font-normal text-slate-500">ජංගම දුරකථන අංකය</span>
+              <span className="font-normal text-slate-500">{translations.mobileNumber[language]}</span>
             </label>
             <input
               type="tel"
@@ -505,7 +692,7 @@ export function RegistrationForm() {
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Email Address /{" "}
-              <span className="font-normal text-slate-500">විද්‍යුත් තැපෑල</span>
+              <span className="font-normal text-slate-500">{translations.email[language]}</span>
             </label>
             <input
               type="email"
@@ -520,7 +707,7 @@ export function RegistrationForm() {
             <label className="block text-sm font-medium text-slate-700">
               Emergency Contact Name /{" "}
               <span className="font-normal text-slate-500">
-                හදිසි අවස්ථාවක සම්බන්ධ කරගත යුතු පුද්ගලයාගේ නම
+                {translations.emergencyContactName[language]}
               </span>
             </label>
             <input
@@ -535,7 +722,7 @@ export function RegistrationForm() {
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Emergency Contact Number /{" "}
-              <span className="font-normal text-slate-500">දුරකථන අංකය</span>
+              <span className="font-normal text-slate-500">{translations.emergencyContactNumber[language]}</span>
             </label>
             <input
               type="tel"
@@ -556,13 +743,13 @@ export function RegistrationForm() {
             4
           </span>
           Education Background /{" "}
-          <span className="font-normal text-slate-600">අධ්‍යාපන පසුබිම</span>
+          <span className="font-normal text-slate-600">{translations.educationBackground[language]}</span>
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-slate-700">
               School / Institution /{" "}
-              <span className="font-normal text-slate-500">පාසල / ආයතනය</span>
+              <span className="font-normal text-slate-500">{translations.schoolInstitution[language]}</span>
             </label>
             <input
               type="text"
@@ -576,7 +763,7 @@ export function RegistrationForm() {
           <div>
             <span className="block text-sm font-medium text-slate-700">
               Highest Education Qualification /{" "}
-              <span className="font-normal text-slate-500">ඉහළම අධ්‍යාපන සුදුසුකම්</span>
+              <span className="font-normal text-slate-500">{translations.highestEducationQualification[language]}</span>
             </span>
             <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
               {[
@@ -604,7 +791,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Qualification 1 / <span className="font-normal text-slate-500">සුදුසුකම් 1</span>
+              Qualification 1 / <span className="font-normal text-slate-500">{translations.qualification1[language]}</span>
             </label>
             <input
               type="text"
@@ -617,7 +804,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Qualification 2 / <span className="font-normal text-slate-500">සුදුසුකම් 2</span>
+              Qualification 2 / <span className="font-normal text-slate-500">{translations.qualification2[language]}</span>
             </label>
             <input
               type="text"
@@ -631,7 +818,7 @@ export function RegistrationForm() {
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
               Other Education Qualification /{" "}
-              <span className="font-normal text-slate-500">වෙනත් අධ්‍යාපන සුදුසුකම්</span>
+              <span className="font-normal text-slate-500">{translations.otherEducationQualification[language]}</span>
             </label>
             <textarea
               name="otherEducationQualification"
@@ -652,18 +839,18 @@ export function RegistrationForm() {
             5
           </span>
           Payment Information /{" "}
-          <span className="font-normal text-slate-600">ගෙවීම් පිළිබඳ තොරතුරු</span>
+          <span className="font-normal text-slate-600">{translations.paymentInfo[language]}</span>
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <span className="block text-sm font-medium text-slate-700">
               Payment Method /{" "}
-              <span className="font-normal text-slate-500">ගෙවීමේ ක්‍රමය</span>
+              <span className="font-normal text-slate-500">{translations.paymentMethod[language]}</span>
             </span>
             <div className="mt-1 flex flex-col gap-1 text-sm">
               {[
-                ["cash", "Cash / මුදල්"],
-                ["bank_transfer", "Bank Transfer / බැංකු මාරු කිරීම"],
+                ["cash", `Cash / ${translations.cash[language]}`],
+                ["bank_transfer", `Bank Transfer / ${translations.bankTransfer[language]}`],
               ].map(([value, label]) => (
                 <label key={value} className="flex items-center gap-2">
                   <input
@@ -682,7 +869,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Amount Paid / <span className="font-normal text-slate-500">ගෙවූ මුදල</span>
+              Amount Paid / <span className="font-normal text-slate-500">{translations.amountPaid[language]}</span>
             </label>
             <input
               type="text"
@@ -695,7 +882,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Receipt Number / <span className="font-normal text-slate-500">රිසිට් අංකය</span>
+              Receipt Number / <span className="font-normal text-slate-500">{translations.receiptNumber[language]}</span>
             </label>
             <input
               type="text"
@@ -709,7 +896,7 @@ export function RegistrationForm() {
           <div>
             <label className="block text-sm font-medium text-slate-700">
               Bank / Branch (if applicable) /{" "}
-              <span className="font-normal text-slate-500">බැංකුව / ශාඛාව</span>
+              <span className="font-normal text-slate-500">{translations.bankBranch[language]}</span>
             </label>
             <input
               type="text"
@@ -725,7 +912,7 @@ export function RegistrationForm() {
               Bank Receipt Photo (optional)
             </label>
             <div
-              className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
+              className={`relative mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
                 receiptDragOver ? "border-[#2d4084] bg-[#2d4084]/5" : "border-slate-200 bg-slate-50/50"
               }`}
               onDragOver={(e) => {
@@ -741,7 +928,9 @@ export function RegistrationForm() {
                 setReceiptDragOver(false);
                 const file = e.dataTransfer.files?.[0];
                 processImageFile(file, "bankReceiptBase64");
+                setActiveImageMenu(null);
               }}
+              onClick={() => setActiveImageMenu("receipt")}
             >
               <input
                 key={values.bankReceiptBase64 ? "has-receipt" : "no-receipt"}
@@ -751,15 +940,67 @@ export function RegistrationForm() {
                 className="sr-only"
                 id="bank-receipt-input"
               />
-              <label
-                htmlFor="bank-receipt-input"
-                className="cursor-pointer font-medium text-[#2d4084] hover:opacity-80"
-              >
-                Click to upload
-              </label>
-              <p className="mt-1 text-slate-500">
-                or drag and drop a receipt image (max 2 MB)
-              </p>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => handleFileChange(e, "bankReceiptBase64")}
+                className="sr-only"
+                id="bank-receipt-camera-input"
+              />
+              {receiptImageLoading ? (
+                <p className="mt-1 text-slate-500">
+                  Uploading & optimizing image…
+                </p>
+              ) : (
+                <p className="mt-1 text-slate-500">
+                  Tap to choose receipt image, or drag and drop (max 2 MB).
+                </p>
+              )}
+
+              {activeImageMenu === "receipt" && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10">
+                  <div className="w-full max-w-xs rounded-xl bg-white p-3 text-xs shadow-lg ring-1 ring-slate-200">
+                    <p className="mb-2 text-[11px] font-semibold text-slate-800">
+                      Select bank receipt image
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageMenu(null);
+                          openFilePicker("bank-receipt-input");
+                        }}
+                        className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left font-medium text-[#2d4084] hover:bg-slate-100"
+                      >
+                        Choose from device / gallery
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageMenu(null);
+                          openFilePicker("bank-receipt-camera-input");
+                        }}
+                        className="w-full rounded-lg bg-[#2d4084] px-3 py-2 text-left font-medium text-white hover:bg-[#25336b]"
+                      >
+                        Take photo with camera
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageMenu(null);
+                      }}
+                      className="mt-2 w-full rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               {values.bankReceiptBase64 && (
                 <div className="mt-3 flex flex-col items-center gap-2">
                   <p className="text-[11px] font-medium text-[#2d4084]">Preview</p>
@@ -782,13 +1023,610 @@ export function RegistrationForm() {
         </div>
       </section>
 
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="relative flex h-full max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/tshelogo.jpg"
+                  alt="TIMES School of Higher Education"
+                  className="h-8 w-auto object-contain"
+                />
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    TIMES SCHOOL OF HIGHER EDUCATION
+                  </h2>
+                  <p className="text-xs font-medium text-slate-600">
+                    Student Registration – Preview
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="rounded-full border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-slate-100 px-4 py-4">
+              <div className="mx-auto w-full max-w-[900px] bg-white p-6 shadow-sm">
+                {/* Top header similar to PDF */}
+                <div className="flex items-start gap-4 border-b border-slate-200 pb-4">
+                  <div className="flex-1">
+                    <p className="text-[10px] font-medium text-slate-500">
+                      1 | Page
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <img
+                        src="/tshelogo.jpg"
+                        alt="TIMES School of Higher Education"
+                        className="h-8 w-auto object-contain"
+                      />
+                      <div>
+                        <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                          TIMES SCHOOL OF HIGHER EDUCATION
+                        </h1>
+                        <p className="text-sm font-semibold text-slate-800">
+                          STUDENT REGISTRATION FORM
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="h-24 w-24 overflow-hidden rounded border border-slate-300 bg-slate-50">
+                      {values.profileImageBase64 ? (
+                        <img
+                          src={values.profileImageBase64}
+                          alt="Profile"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                          Profile Photo
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Paste candidate&apos;s photograph
+                    </p>
+                  </div>
+                </div>
+
+                {/* Body content laid out like PDF */}
+                <div className="mt-4 space-y-4 text-[11px] text-slate-900">
+                  {/* 1. Programme Selection */}
+                  <div>
+                    <p className="font-semibold">
+                      1. Programme Selection /{" "}
+                      <span className="font-normal text-slate-700">
+                        {translations.programmeSelection[language]}
+                      </span>
+                    </p>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="font-semibold text-[11px]">
+                          Undergraduate Programmes
+                        </p>
+                        <ul className="mt-0.5 space-y-0.5">
+                          {[
+                            ["BBA", "Bachelor of Business Administration"],
+                            ["BTL", "Bachelor of Transportation and Logistics"],
+                            ["BSCM", "Bachelor of Supply Chain Management"],
+                            ["BIT", "Bachelor of Information and Technology"],
+                          ].map(([code, label]) => (
+                            <li key={code} className="flex items-center gap-1">
+                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                {values.programmeName === code ? "✓" : ""}
+                              </span>
+                              <span>{label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="space-y-1">
+                        <div>
+                          <p className="font-semibold text-[11px]">
+                            Postgraduate Programmes
+                          </p>
+                          <div className="mt-0.5 flex items-center gap-1">
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.programmeName === "MBA" ? "✓" : ""}
+                            </span>
+                            <span>Master of Business Administration</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[11px]">
+                            Diploma Programmes / Certificate Programmes
+                          </p>
+                          <ul className="mt-0.5 space-y-0.5">
+                            <li className="flex items-center gap-1">
+                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                {values.programmeName ===
+                                "Diploma_Professional_English_Digital_Skills"
+                                  ? "✓"
+                                  : ""}
+                              </span>
+                              <span>
+                                Diploma in Professional English and Digital
+                                Skills
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-1">
+                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                {values.programmeName ===
+                                "AdvCert_Professional_Communication_Digital_Skills_School_Leaders"
+                                  ? "✓"
+                                  : ""}
+                              </span>
+                              <span>
+                                Advanced Certificate in Professional
+                                Communication and Digital Skills for School
+                                Leaders
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[11px]">
+                            Languages
+                          </p>
+                          <div className="mt-0.5 flex items-center gap-1">
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.programmeName === "Cambridge_Linguaskill"
+                                ? "✓"
+                                : ""}
+                            </span>
+                            <span>Cambridge Linguaskill</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2 & 3. Personal + Contact Information */}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    <div className="col-span-2 flex items-center justify-between">
+                      <div className="font-semibold">
+                        2. Personal Information /{" "}
+                        <span className="font-normal text-slate-700">
+                          {translations.personalInfo[language]}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-16 w-16 overflow-hidden rounded border border-slate-300 bg-slate-50">
+                          {values.profileImageBase64 ? (
+                            <img
+                              src={values.profileImageBase64}
+                              alt="Profile"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                              Photo
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-slate-500">
+                          Personal section photo
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Full Name /{" "}
+                        <span className="font-normal">
+                          {translations.fullName[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.fullName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Name with Initials /{" "}
+                        <span className="font-normal">
+                          {translations.nameWithInitials[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.nameWithInitials}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Date of Birth /{" "}
+                        <span className="font-normal">
+                          {translations.dateOfBirth[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.dateOfBirth}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Gender /{" "}
+                        <span className="font-normal">
+                          {translations.gender[language]}
+                        </span>
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-4">
+                        {[
+                          ["male", "Male"],
+                          ["female", "Female"],
+                        ].map(([code, label]) => (
+                          <div
+                            key={code}
+                            className="flex items-center gap-1 text-[11px]"
+                          >
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.gender === code ? "✓" : ""}
+                            </span>
+                            <span>{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        NIC /{" "}
+                        <span className="font-normal">
+                          {translations.nic[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.nic}
+                      </p>
+                    </div>
+                    <div className="col-span-2 mt-2 font-semibold">
+                      3. Contact Information /{" "}
+                      <span className="font-normal text-slate-700">
+                        {translations.contactInfo[language]}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="font-semibold">
+                        Address /{" "}
+                        <span className="font-normal">
+                          {translations.address[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[32px] whitespace-pre-line border border-slate-300 px-1 py-1">
+                        {values.address}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Mobile Number /{" "}
+                        <span className="font-normal">
+                          {translations.mobileNumber[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.mobileNumber}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Email Address /{" "}
+                        <span className="font-normal">
+                          {translations.email[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.email}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Emergency Contact Name /{" "}
+                        <span className="font-normal">
+                          {translations.emergencyContactName[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.emergencyContactName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">
+                        Emergency Contact Number /{" "}
+                        <span className="font-normal">
+                          {translations.emergencyContactNumber[language]}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                        {values.emergencyContactNumber}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 4. Education Background */}
+                  <div>
+                    <p className="font-semibold">
+                      4. Education Background /{" "}
+                      <span className="font-normal text-slate-700">
+                        {translations.educationBackground[language]}
+                      </span>
+                    </p>
+                    <div className="mt-1 grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="font-semibold">
+                          School / Institution /{" "}
+                          <span className="font-normal">
+                            {translations.schoolInstitution[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.schoolInstitution}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          Highest Education Qualification /{" "}
+                          <span className="font-normal">
+                            {translations.highestEducationQualification[
+                              language
+                            ]}
+                          </span>
+                        </p>
+                        <div className="mt-0.5 flex flex-wrap gap-3">
+                          {[
+                            ["bachelor", "Bachelor"],
+                            ["hnd", "HND"],
+                            ["diploma", "Diploma"],
+                            ["certificate", "Certificate level"],
+                            ["al", "A/L"],
+                            ["ol", "O/L"],
+                          ].map(([code, label]) => (
+                            <div
+                              key={code}
+                              className="flex items-center gap-1 text-[11px]"
+                            >
+                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                {values.highestEducationQualification === code
+                                  ? "✓"
+                                  : ""}
+                              </span>
+                              <span>{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-semibold">
+                          Qualification 1 /{" "}
+                          <span className="font-normal">
+                            {translations.qualification1[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.qualification1}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-semibold">
+                          Qualification 2 /{" "}
+                          <span className="font-normal">
+                            {translations.qualification2[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.qualification2}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-semibold">
+                          Other Education Qualification /{" "}
+                          <span className="font-normal">
+                            {translations.otherEducationQualification[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[32px] whitespace-pre-line border border-slate-300 px-1 py-1">
+                          {values.otherEducationQualification}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Payment Information */}
+                  <div>
+                    <p className="font-semibold">
+                      5. Payment Information /{" "}
+                      <span className="font-normal text-slate-700">
+                        {translations.paymentInfo[language]}
+                      </span>
+                    </p>
+                    <div className="mt-1 grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="font-semibold">
+                          Payment Method /{" "}
+                          <span className="font-normal">
+                            {translations.paymentMethod[language]}
+                          </span>
+                        </p>
+                        <div className="mt-0.5 space-y-1">
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.paymentMethod === "cash" ? "✓" : ""}
+                            </span>
+                            <span>
+                              Cash / {translations.cash[language]}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.paymentMethod === "bank_transfer"
+                                ? "✓"
+                                : ""}
+                            </span>
+                            <span>
+                              Bank Transfer / {translations.bankTransfer[language]}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          Amount Paid /{" "}
+                          <span className="font-normal">
+                            {translations.amountPaid[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.amountPaid}
+                        </p>
+                        <p className="mt-2 font-semibold">
+                          Receipt Number /{" "}
+                          <span className="font-normal">
+                            {translations.receiptNumber[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.receiptNumber}
+                        </p>
+                        <p className="mt-2 font-semibold">
+                          Bank / Branch (if applicable) /{" "}
+                          <span className="font-normal">
+                            {translations.bankBranch[language]}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
+                          {values.bankBranch}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. Declaration */}
+                  <div className="mt-2 border-t border-slate-200 pt-2 text-[11px]">
+                    <p className="font-semibold">
+                      6. Declaration /{" "}
+                      <span className="font-normal text-slate-700">
+                        {translations.declaration[language]}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-slate-800">
+                      I hereby declare that the above information is true and
+                      correct. I understand that any false information may
+                      result in the cancellation of my enrollment.
+                    </p>
+                    <p className="mt-1 text-slate-800">
+                      {translations.declarationParagraph[language]}
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-[11px] text-slate-700">
+                          Signature of Applicant
+                        </p>
+                        <div className="mt-4 border-b border-slate-400" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-slate-700">Date</p>
+                        <div className="mt-4 border-b border-slate-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Receipt section at bottom for cutting */}
+                  <div className="mt-4 border-t border-dashed border-slate-400 pt-3">
+                    <p className="text-[11px] font-semibold text-slate-900">
+                      Payment Receipt (Student Copy)
+                    </p>
+                    <p className="mb-2 text-[10px] text-slate-500">
+                      Cut along the dotted line and keep this receipt.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 text-[11px]">
+                      <div>
+                        <p className="font-semibold">Name</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300">
+                          {values.fullName}
+                        </p>
+                        <p className="mt-2 font-semibold">Programme</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300">
+                          {values.programmeName}
+                        </p>
+                        <p className="mt-2 font-semibold">Amount Paid</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300">
+                          {values.amountPaid}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Receipt Number</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300">
+                          {values.receiptNumber}
+                        </p>
+                        <p className="mt-2 font-semibold">Bank / Branch</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300">
+                          {values.bankBranch}
+                        </p>
+                        <p className="mt-2 font-semibold">Received By</p>
+                        <p className="mt-0.5 min-h-[16px] border-b border-slate-300" />
+                      </div>
+                    </div>
+                    {values.bankReceiptBase64 && (
+                      <div className="mt-3">
+                        <p className="mb-1 text-[11px] font-semibold text-slate-900">
+                          Bank Receipt Image
+                        </p>
+                        <div className="flex items-center justify-center rounded border border-slate-300 bg-slate-50 p-2">
+                          <img
+                            src={values.bankReceiptBase64}
+                            alt="Bank receipt"
+                            className="max-h-40 w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3">
+              <div className="flex gap-2 text-[11px] text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Print
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="rounded-lg border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Back &amp; Edit
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={submitForm}
+                  className="rounded-lg bg-[#f01923] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#d9151e] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Submitting…" : "Confirm & Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 6. Declaration */}
       <section className={`grid gap-5 ${sectionClass}`}>
         <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             6
           </span>
-          Declaration / <span className="font-normal text-slate-600">ප්‍රකාශය</span>
+          Declaration / <span className="font-normal text-slate-600">{translations.declaration[language]}</span>
         </h2>
         <p className="text-sm text-slate-700">
           I hereby declare that the above information is true and correct. I
@@ -796,8 +1634,7 @@ export function RegistrationForm() {
           my enrollment.
         </p>
         <p className="mt-1 text-sm text-slate-700">
-          මම මෙහි සදහන් තොරතුරු සැබෑ සහ නිවැරදි බව සහතික කරමි. අසත්‍ය තොරතුරු
-          ලබාදීමේදී ලියාපදිංචිය අවලංගු විය හැක.
+          {translations.declarationParagraph[language]}
         </p>
         <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 transition-colors hover:bg-slate-50">
           <input
@@ -818,7 +1655,11 @@ export function RegistrationForm() {
           disabled={submitting}
           className="inline-flex items-center justify-center rounded-xl bg-[#f01923] px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#f01923]/30 transition hover:bg-[#d9151e] hover:shadow-[#f01923]/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
         >
-          {submitting ? "Submitting…" : "Submit Registration"}
+          {submitting
+            ? "Submitting…"
+            : showPreview
+            ? "Re-open Preview"
+            : "Review & Preview"}
         </button>
       </div>
     </form>
