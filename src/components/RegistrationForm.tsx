@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RegistrationInput } from "@/lib/validation";
 import { registrationSchema } from "@/lib/validation";
 import type { FormLanguage } from "@/lib/translations";
@@ -45,9 +45,123 @@ export function RegistrationForm() {
   const [receiptDragOver, setReceiptDragOver] = useState(false);
   const [language, setLanguage] = useState<FormLanguage>("sinhala");
   const [showPreview, setShowPreview] = useState(false);
-  const [activeImageMenu, setActiveImageMenu] = useState<"profile" | "receipt" | null>(null);
-  const [profileImageLoading, setProfileImageLoading] = useState(false);
-  const [receiptImageLoading, setReceiptImageLoading] = useState(false);
+  const [submissionCompleted, setSubmissionCompleted] = useState(false);
+  const [activeImageField, setActiveImageField] = useState<
+    "profileImageBase64" | "bankReceiptBase64" | null
+  >(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [isCameraSupported, setIsCameraSupported] = useState<boolean | null>(
+    null
+  );
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const resetForm = () => {
+    setValues(initialValues);
+    setErrors({});
+    setSubmitError(null);
+    setSubmitSuccess(false);
+    setSubmissionCompleted(false);
+  };
+
+  const handleClosePreview = () => {
+    setShowPreview(false);
+    if (submissionCompleted) {
+      resetForm();
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setIsStartingCamera(false);
+  };
+
+  useEffect(() => {
+    // Detect camera API support once on mount (helps for mobile browsers)
+    if (typeof navigator !== "undefined") {
+      const supported =
+        !!navigator.mediaDevices && !!navigator.mediaDevices.getUserMedia;
+      setIsCameraSupported(supported);
+    } else {
+      setIsCameraSupported(false);
+    }
+
+    return () => {
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openImagePopup = (
+    field: "profileImageBase64" | "bankReceiptBase64"
+  ) => {
+    setActiveImageField(field);
+    setCameraError(null);
+  };
+
+  const closeImagePopup = () => {
+    setActiveImageField(null);
+    setCameraError(null);
+    stopCamera();
+  };
+
+  const startCamera = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setCameraError(
+        "Direct camera access is not available in this browser. Please use 'Choose from device' or try a different browser."
+      );
+      return;
+    }
+
+    try {
+      setIsStartingCamera(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      setCameraStream(stream);
+      setCameraError(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      setCameraError("Unable to access camera. Please check permissions.");
+      stopCamera();
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
+
+  const capturePhotoFromCamera = () => {
+    if (!videoRef.current || !activeImageField) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    if (!dataUrl) return;
+
+    setValues((prev) => ({
+      ...prev,
+      [activeImageField]: dataUrl,
+    }));
+
+    closeImagePopup();
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -61,74 +175,7 @@ export function RegistrationForm() {
     }));
   };
 
-  const fileToDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result;
-        if (typeof result === "string") {
-          resolve(result);
-        } else {
-          reject(new Error("Failed to read file"));
-        }
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const approximateDataUrlSize = (dataUrl: string): number => {
-    const base64 = dataUrl.split(",")[1] ?? "";
-    return Math.ceil((base64.length * 3) / 4);
-  };
-
-  const compressImage = async (file: File, maxBytes: number): Promise<string> => {
-    const dataUrl = await fileToDataURL(file);
-    const img = new Image();
-
-    return new Promise((resolve, reject) => {
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Canvas not supported"));
-          return;
-        }
-
-        const maxDim = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height && width > maxDim) {
-          height = (height * maxDim) / width;
-          width = maxDim;
-        } else if (height > maxDim) {
-          width = (width * maxDim) / height;
-          height = maxDim;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        let quality = 0.8;
-        let result = canvas.toDataURL("image/jpeg", quality);
-        let size = approximateDataUrlSize(result);
-
-        while (size > maxBytes && quality > 0.3) {
-          quality -= 0.15;
-          result = canvas.toDataURL("image/jpeg", quality);
-          size = approximateDataUrlSize(result);
-        }
-
-        resolve(result);
-      };
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = dataUrl;
-    });
-  };
-
-  const processImageFile = async (
+  const processImageFile = (
     file: File | undefined,
     field: "profileImageBase64" | "bankReceiptBase64"
   ) => {
@@ -137,48 +184,37 @@ export function RegistrationForm() {
       return;
     }
 
-    const setLoading =
-      field === "profileImageBase64" ? setProfileImageLoading : setReceiptImageLoading;
-
-    setLoading(true);
-    setSubmitError(null);
-
-    try {
-      const MAX_BYTES = 2 * 1024 * 1024;
-      let dataUrl: string;
-
-      if (file.size > MAX_BYTES) {
-        dataUrl = await compressImage(file, MAX_BYTES);
-      } else {
-        dataUrl = await fileToDataURL(file);
+    if (file.size > 2 * 1024 * 1024) {
+      setSubmitError("Images must be 2 MB or smaller.");
+      if (typeof window !== "undefined") {
+        window.alert("Images must be 2 MB or smaller.");
       }
-
-      if (!dataUrl) {
-        setSubmitError("Could not process image. Please try another file.");
-        return;
-      }
-
-      setValues((prev) => ({ ...prev, [field]: dataUrl }));
-    } catch (error) {
-      setSubmitError("Failed to process image. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setValues((prev) => ({ ...prev, [field]: result }));
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleFileChange = async (
+  const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: "profileImageBase64" | "bankReceiptBase64"
   ) => {
     const file = e.target.files?.[0];
-    await processImageFile(file, field);
-    setActiveImageMenu(null);
+    processImageFile(file, field);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
     setSubmitSuccess(false);
+    setSubmissionCompleted(false);
 
     const parsed = registrationSchema.safeParse(values);
     if (!parsed.success) {
@@ -223,19 +259,11 @@ export function RegistrationForm() {
       }
 
       setSubmitSuccess(true);
-      setShowPreview(false);
-      setValues(initialValues);
+      setSubmissionCompleted(true);
     } catch (error) {
       setSubmitError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const openFilePicker = (targetId: string) => {
-    const el = document.getElementById(targetId) as HTMLInputElement | null;
-    if (el) {
-      el.click();
     }
   };
 
@@ -541,7 +569,7 @@ export function RegistrationForm() {
               Profile Photo (optional)
             </label>
             <div
-              className={`relative mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
+              className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
                 profileDragOver ? "border-[#2d4084] bg-[#2d4084]/5" : "border-slate-200 bg-slate-50/50"
               }`}
               onDragOver={(e) => {
@@ -557,79 +585,27 @@ export function RegistrationForm() {
                 setProfileDragOver(false);
                 const file = e.dataTransfer.files?.[0];
                 processImageFile(file, "profileImageBase64");
-                setActiveImageMenu(null);
               }}
-              onClick={() => setActiveImageMenu("profile")}
             >
               <input
                 key={values.profileImageBase64 ? "has-profile" : "no-profile"}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={(e) => handleFileChange(e, "profileImageBase64")}
                 className="sr-only"
                 id="profile-image-input"
               />
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => handleFileChange(e, "profileImageBase64")}
-                className="sr-only"
-                id="profile-image-camera-input"
-              />
-              {profileImageLoading ? (
-                <p className="mt-1 text-slate-500">
-                  Uploading & optimizing image…
-                </p>
-              ) : (
-                <p className="mt-1 text-slate-500">
-                  Tap to choose image, or drag and drop (max 2 MB).
-                </p>
-              )}
-
-              {activeImageMenu === "profile" && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10">
-                  <div className="w-full max-w-xs rounded-xl bg-white p-3 text-xs shadow-lg ring-1 ring-slate-200">
-                    <p className="mb-2 text-[11px] font-semibold text-slate-800">
-                      Select profile photo
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageMenu(null);
-                          openFilePicker("profile-image-input");
-                        }}
-                        className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left font-medium text-[#2d4084] hover:bg-slate-100"
-                      >
-                        Choose from device / gallery
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageMenu(null);
-                          openFilePicker("profile-image-camera-input");
-                        }}
-                        className="w-full rounded-lg bg-[#2d4084] px-3 py-2 text-left font-medium text-white hover:bg-[#25336b]"
-                      >
-                        Take photo with camera
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveImageMenu(null);
-                      }}
-                      className="mt-2 w-full rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => openImagePopup("profileImageBase64")}
+                className="cursor-pointer font-medium text-[#2d4084] hover:opacity-80"
+              >
+                Click to upload or take photo
+              </button>
+              <p className="mt-1 text-slate-500">
+                or drag and drop an image (max 2 MB)
+              </p>
               {values.profileImageBase64 && (
                 <div className="mt-3 flex flex-col items-center gap-2">
                   <p className="text-[11px] font-medium text-[#2d4084]">Preview</p>
@@ -912,7 +888,7 @@ export function RegistrationForm() {
               Bank Receipt Photo (optional)
             </label>
             <div
-              className={`relative mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
+              className={`mt-1.5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
                 receiptDragOver ? "border-[#2d4084] bg-[#2d4084]/5" : "border-slate-200 bg-slate-50/50"
               }`}
               onDragOver={(e) => {
@@ -928,79 +904,27 @@ export function RegistrationForm() {
                 setReceiptDragOver(false);
                 const file = e.dataTransfer.files?.[0];
                 processImageFile(file, "bankReceiptBase64");
-                setActiveImageMenu(null);
               }}
-              onClick={() => setActiveImageMenu("receipt")}
             >
               <input
                 key={values.bankReceiptBase64 ? "has-receipt" : "no-receipt"}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={(e) => handleFileChange(e, "bankReceiptBase64")}
                 className="sr-only"
                 id="bank-receipt-input"
               />
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => handleFileChange(e, "bankReceiptBase64")}
-                className="sr-only"
-                id="bank-receipt-camera-input"
-              />
-              {receiptImageLoading ? (
-                <p className="mt-1 text-slate-500">
-                  Uploading & optimizing image…
-                </p>
-              ) : (
-                <p className="mt-1 text-slate-500">
-                  Tap to choose receipt image, or drag and drop (max 2 MB).
-                </p>
-              )}
-
-              {activeImageMenu === "receipt" && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10">
-                  <div className="w-full max-w-xs rounded-xl bg-white p-3 text-xs shadow-lg ring-1 ring-slate-200">
-                    <p className="mb-2 text-[11px] font-semibold text-slate-800">
-                      Select bank receipt image
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageMenu(null);
-                          openFilePicker("bank-receipt-input");
-                        }}
-                        className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left font-medium text-[#2d4084] hover:bg-slate-100"
-                      >
-                        Choose from device / gallery
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveImageMenu(null);
-                          openFilePicker("bank-receipt-camera-input");
-                        }}
-                        className="w-full rounded-lg bg-[#2d4084] px-3 py-2 text-left font-medium text-white hover:bg-[#25336b]"
-                      >
-                        Take photo with camera
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveImageMenu(null);
-                      }}
-                      className="mt-2 w-full rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => openImagePopup("bankReceiptBase64")}
+                className="cursor-pointer font-medium text-[#2d4084] hover:opacity-80"
+              >
+                Click to upload or take photo
+              </button>
+              <p className="mt-1 text-slate-500">
+                or drag and drop a receipt image (max 2 MB)
+              </p>
               {values.bankReceiptBase64 && (
                 <div className="mt-3 flex flex-col items-center gap-2">
                   <p className="text-[11px] font-medium text-[#2d4084]">Preview</p>
@@ -1024,8 +948,14 @@ export function RegistrationForm() {
       </section>
 
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
-          <div className="relative flex h-full max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6"
+          onClick={handleClosePreview}
+        >
+          <div
+            className="relative flex h-full max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
               <div className="flex items-center gap-3">
                 <img
@@ -1044,7 +974,7 @@ export function RegistrationForm() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowPreview(false)}
+                onClick={handleClosePreview}
                 className="rounded-full border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               >
                 ✕
@@ -1054,7 +984,7 @@ export function RegistrationForm() {
             <div className="flex-1 overflow-auto bg-slate-100 px-4 py-4">
               <div className="mx-auto w-full max-w-[900px] bg-white p-6 shadow-sm">
                 {/* Top header similar to PDF */}
-                <div className="flex items-start gap-4 border-b border-slate-200 pb-4">
+                <div className="flex items-start border-b border-slate-200 pb-4">
                   <div className="flex-1">
                     <p className="text-[10px] font-medium text-slate-500">
                       1 | Page
@@ -1074,24 +1004,6 @@ export function RegistrationForm() {
                         </p>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="h-24 w-24 overflow-hidden rounded border border-slate-300 bg-slate-50">
-                      {values.profileImageBase64 ? (
-                        <img
-                          src={values.profileImageBase64}
-                          alt="Profile"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
-                          Profile Photo
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Paste candidate&apos;s photograph
-                    </p>
                   </div>
                 </div>
 
@@ -1589,32 +1501,174 @@ export function RegistrationForm() {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3">
-              <div className="flex gap-2 text-[11px] text-slate-500">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Print
-                </button>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Back &amp; Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={submitForm}
-                  className="rounded-lg bg-[#f01923] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#d9151e] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? "Submitting…" : "Confirm & Submit"}
-                </button>
-              </div>
+              {submissionCompleted ? (
+                <>
+                  <div className="flex flex-col gap-1 text-[11px] text-emerald-700">
+                    <span className="font-semibold">
+                      Registration submitted successfully.
+                    </span>
+                    <span className="text-emerald-800">
+                      You can download / print this page as the student&apos;s PDF copy.
+                    </span>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Download / Print PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClosePreview}
+                      className="rounded-lg bg-[#f01923] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#d9151e]"
+                    >
+                      OK
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2 text-[11px] text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Print
+                    </button>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(false)}
+                      className="rounded-lg border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Back &amp; Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={submitForm}
+                      className="rounded-lg bg-[#f01923] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#d9151e] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {submitting ? "Submitting…" : "Confirm & Submit"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeImageField && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-6"
+          onClick={closeImagePopup}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">
+                {activeImageField === "profileImageBase64"
+                  ? "Profile Photo"
+                  : "Bank Receipt Photo"}
+              </h2>
+              <button
+                type="button"
+                onClick={closeImagePopup}
+                className="rounded-full border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Choose an existing image from your device or take a new photo using
+              your camera. Works on mobile and desktop (where supported by your
+              browser).
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const inputId =
+                    activeImageField === "profileImageBase64"
+                      ? "profile-image-input"
+                      : "bank-receipt-input";
+                  const input = document.getElementById(
+                    inputId
+                  ) as HTMLInputElement | null;
+                  input?.click();
+                  closeImagePopup();
+                }}
+                className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
+              >
+                Choose from device
+              </button>
+
+              {isCameraSupported ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-800">
+                      Take photo with camera
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cameraStream ? stopCamera : startCamera}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      {cameraStream ? "Stop camera" : "Start camera"}
+                    </button>
+                  </div>
+                  {cameraError && (
+                    <p className="mt-2 text-xs text-rose-600">{cameraError}</p>
+                  )}
+                  <div className="mt-3 flex flex-col items-center gap-2">
+                    <div className="flex h-40 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-100">
+                      {cameraStream ? (
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs text-slate-400">
+                          Camera preview will appear here
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={capturePhotoFromCamera}
+                      disabled={!cameraStream || isStartingCamera}
+                      className="mt-1 inline-flex items-center justify-center rounded-lg bg-[#2d4084] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#25336a] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isStartingCamera ? "Starting camera…" : "Capture photo"}
+                    </button>
+                    <p className="text-[10px] text-slate-500">
+                      Make sure to allow camera access in your browser when asked.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+                  <p className="font-medium">
+                    Direct camera access is not available in this browser or connection.
+                  </p>
+                  <p className="mt-1">
+                    You can still upload photos by using{" "}
+                    <span className="font-semibold">Choose from device</span>. On many
+                    phones this will let you pick an existing photo or open the camera.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
