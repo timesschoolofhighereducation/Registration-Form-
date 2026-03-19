@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
       applicant_signed: data.applicantSigned,
       applicant_signed_at: new Date().toISOString(),
       ip_hash: ip,
-      profile_image_base64: data.profileImageBase64 ?? null,
-      bank_receipt_base64: data.bankReceiptBase64 ?? null,
+      profile_image_base64: data.profileImageBase64?.trim() || null,
+      bank_receipt_base64: data.bankReceiptBase64?.trim() || null,
     });
 
     if (error) {
