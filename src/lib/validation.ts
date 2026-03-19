@@ -67,9 +67,7 @@ export const registrationSchema = z.object({
     .string()
     .max(2_000_000, "Bank receipt image is too large")
     .optional(),
-  applicantSigned: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the declaration" }),
-  }),
+  applicantSigned: z.literal(true, "You must accept the declaration"),
 });
 
 export type RegistrationInput = z.infer<typeof registrationSchema>;

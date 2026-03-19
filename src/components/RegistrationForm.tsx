@@ -166,7 +166,8 @@ export function RegistrationForm() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
+    const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : false;
     // Any edit should hide the preview so user reviews again
     if (showPreview) setShowPreview(false);
     setValues((prev) => ({
@@ -1694,7 +1695,7 @@ export function RegistrationForm() {
           <input
             type="checkbox"
             name="applicantSigned"
-            checked={values.applicantSigned}
+            checked={values.applicantSigned === true}
             onChange={handleChange}
             className="h-4 w-4 rounded border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
           />
