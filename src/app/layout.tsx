@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TIMES School | Student Registration",
+  title: "Registration Form - Times School of Higher Education",
   description: "Secure online registration for TIMES School of Higher Education",
+  icons: {
+    icon: "/tshelogo.jpg",
+  },
 };
 
 export default function RootLayout({

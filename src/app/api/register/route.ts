@@ -65,6 +65,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.includes("Missing required env var")) {
+      return NextResponse.json(
+        { ok: false, message: "Server is missing Supabase environment configuration." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { ok: false, message: "Unexpected error" },
       { status: 500 }
