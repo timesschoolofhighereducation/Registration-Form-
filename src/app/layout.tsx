@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
   title: "Registration Form - Times School of Higher Education",
   description: "Secure online registration for TIMES School of Higher Education",
   icons: {
-    icon: "/public/tshelogo.png",
+    icon: "/tshelogo.png",
   },
 };
 
@@ -31,6 +33,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

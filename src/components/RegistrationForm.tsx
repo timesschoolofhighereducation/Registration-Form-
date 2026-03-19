@@ -285,7 +285,7 @@ export function RegistrationForm() {
     >
       <header className="flex flex-col items-center text-center">
         <img
-          src="/public/tshelogo.png"
+          src="/tshelogo.jpg"
           alt="TIMES School of Higher Education"
           className="mb-4 h-20 w-auto object-contain sm:h-24"
         />
