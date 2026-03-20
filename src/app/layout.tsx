@@ -18,7 +18,9 @@ export const metadata: Metadata = {
   title: "Registration Form - Times School of Higher Education",
   description: "Secure online registration for TIMES School of Higher Education",
   icons: {
-    icon: "/tshelogo.png",
+    icon: [{ url: "/tshelogo.png", type: "image/png" }],
+    shortcut: "/tshelogo.png",
+    apple: "/tshelogo.png",
   },
 };
 
