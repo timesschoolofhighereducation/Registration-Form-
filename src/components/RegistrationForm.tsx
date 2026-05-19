@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RegistrationInput } from "@/lib/validation";
 import { registrationSchema } from "@/lib/validation";
-import type { FormLanguage } from "@/lib/translations";
-import { translations } from "@/lib/translations";
 
 type FieldErrors = Partial<Record<keyof RegistrationInput, string>>;
 
@@ -43,7 +41,6 @@ export function RegistrationForm() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [profileDragOver, setProfileDragOver] = useState(false);
   const [receiptDragOver, setReceiptDragOver] = useState(false);
-  const [language, setLanguage] = useState<FormLanguage>("sinhala");
   const [showPreview, setShowPreview] = useState(false);
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
   const [activeImageField, setActiveImageField] = useState<
@@ -296,30 +293,6 @@ export function RegistrationForm() {
         <p className="mt-2 text-base font-medium text-slate-600">
           Student Registration
         </p>
-        <div className="mt-4 flex gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
-          <button
-            type="button"
-            onClick={() => setLanguage("sinhala")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              language === "sinhala"
-                ? "bg-[#2d4084] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            සිංහල
-          </button>
-          <button
-            type="button"
-            onClick={() => setLanguage("tamil")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              language === "tamil"
-                ? "bg-[#2d4084] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            தமிழ்
-          </button>
-        </div>
       </header>
 
       {submitError && (
@@ -339,10 +312,10 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             1
           </span>
-          Programme Selection / <span className="font-normal text-slate-600">{translations.programmeSelection[language]}</span>
+          Programme Selection
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          Please choose the program you are registering for / {translations.programmeSelectionDesc[language]}
+          Please choose the program you are registering for
         </p>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
@@ -484,13 +457,12 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             2
           </span>
-          Personal Information /{" "}
-          <span className="font-normal text-slate-600">{translations.personalInfo[language]}</span>
+          Personal Information
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Full Name / <span className="font-normal text-slate-500">{translations.fullName[language]}</span>
+              Full Name
             </label>
             <input
               type="text"
@@ -503,8 +475,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Name with Initials /{" "}
-              <span className="font-normal text-slate-500">{translations.nameWithInitials[language]}</span>
+              Name with Initials
             </label>
             <input
               type="text"
@@ -517,7 +488,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Date of Birth / <span className="font-normal text-slate-500">{translations.dateOfBirth[language]}</span>
+              Date of Birth
             </label>
             <input
               type="date"
@@ -530,7 +501,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <span className="block text-sm font-medium text-slate-700">
-              Gender / <span className="font-normal text-slate-500">{translations.gender[language]}</span>
+              Gender
             </span>
             <div className="mt-1 flex gap-4">
               {[
@@ -554,7 +525,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              NIC / <span className="font-normal text-slate-500">{translations.nic[language]}</span>
+              NIC
             </label>
             <input
               type="text"
@@ -635,13 +606,12 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             3
           </span>
-          Contact Information /{" "}
-          <span className="font-normal text-slate-600">{translations.contactInfo[language]}</span>
+          Contact Information
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
-              Address / <span className="font-normal text-slate-500">{translations.address[language]}</span>
+              Address
             </label>
             <textarea
               name="address"
@@ -654,8 +624,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Mobile Number /{" "}
-              <span className="font-normal text-slate-500">{translations.mobileNumber[language]}</span>
+              Mobile Number
             </label>
             <input
               type="tel"
@@ -668,8 +637,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Email Address /{" "}
-              <span className="font-normal text-slate-500">{translations.email[language]}</span>
+              Email Address
             </label>
             <input
               type="email"
@@ -682,10 +650,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Emergency Contact Name /{" "}
-              <span className="font-normal text-slate-500">
-                {translations.emergencyContactName[language]}
-              </span>
+              Emergency Contact Name
             </label>
             <input
               type="text"
@@ -698,8 +663,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Emergency Contact Number /{" "}
-              <span className="font-normal text-slate-500">{translations.emergencyContactNumber[language]}</span>
+              Emergency Contact Number
             </label>
             <input
               type="tel"
@@ -719,14 +683,12 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             4
           </span>
-          Education Background /{" "}
-          <span className="font-normal text-slate-600">{translations.educationBackground[language]}</span>
+          Education Background
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              School / Institution /{" "}
-              <span className="font-normal text-slate-500">{translations.schoolInstitution[language]}</span>
+              School / Institution
             </label>
             <input
               type="text"
@@ -739,8 +701,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <span className="block text-sm font-medium text-slate-700">
-              Highest Education Qualification /{" "}
-              <span className="font-normal text-slate-500">{translations.highestEducationQualification[language]}</span>
+              Highest Education Qualification
             </span>
             <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
               {[
@@ -768,7 +729,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Qualification 1 / <span className="font-normal text-slate-500">{translations.qualification1[language]}</span>
+              Qualification 1
             </label>
             <input
               type="text"
@@ -781,7 +742,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Qualification 2 / <span className="font-normal text-slate-500">{translations.qualification2[language]}</span>
+              Qualification 2
             </label>
             <input
               type="text"
@@ -794,8 +755,7 @@ export function RegistrationForm() {
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
-              Other Education Qualification /{" "}
-              <span className="font-normal text-slate-500">{translations.otherEducationQualification[language]}</span>
+              Other Education Qualification
             </label>
             <textarea
               name="otherEducationQualification"
@@ -815,19 +775,17 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             5
           </span>
-          Payment Information /{" "}
-          <span className="font-normal text-slate-600">{translations.paymentInfo[language]}</span>
+          Payment Information
         </h2>
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <span className="block text-sm font-medium text-slate-700">
-              Payment Method /{" "}
-              <span className="font-normal text-slate-500">{translations.paymentMethod[language]}</span>
+              Payment Method
             </span>
             <div className="mt-1 flex flex-col gap-1 text-sm">
               {[
-                ["cash", `Cash / ${translations.cash[language]}`],
-                ["bank_transfer", `Bank Transfer / ${translations.bankTransfer[language]}`],
+                ["cash", "Cash"],
+                ["bank_transfer", "Bank Transfer"],
               ].map(([value, label]) => (
                 <label key={value} className="flex items-center gap-2">
                   <input
@@ -846,7 +804,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Amount Paid / <span className="font-normal text-slate-500">{translations.amountPaid[language]}</span>
+              Amount Paid
             </label>
             <input
               type="text"
@@ -859,7 +817,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Receipt Number / <span className="font-normal text-slate-500">{translations.receiptNumber[language]}</span>
+              Receipt Number
             </label>
             <input
               type="text"
@@ -872,8 +830,7 @@ export function RegistrationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">
-              Bank / Branch (if applicable) /{" "}
-              <span className="font-normal text-slate-500">{translations.bankBranch[language]}</span>
+              Bank / Branch (if applicable)
             </label>
             <input
               type="text"
@@ -1013,10 +970,7 @@ export function RegistrationForm() {
                   {/* 1. Programme Selection */}
                   <div>
                     <p className="font-semibold">
-                      1. Programme Selection /{" "}
-                      <span className="font-normal text-slate-700">
-                        {translations.programmeSelection[language]}
-                      </span>
+                      1. Programme Selection
                     </p>
                     <div className="mt-1 grid grid-cols-2 gap-2">
                       <div>
@@ -1104,10 +1058,7 @@ export function RegistrationForm() {
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                     <div className="col-span-2 flex items-center justify-between">
                       <div className="font-semibold">
-                        2. Personal Information /{" "}
-                        <span className="font-normal text-slate-700">
-                          {translations.personalInfo[language]}
-                        </span>
+                        2. Personal Information
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="h-16 w-16 overflow-hidden rounded border border-slate-300 bg-slate-50">
@@ -1130,10 +1081,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Full Name /{" "}
-                        <span className="font-normal">
-                          {translations.fullName[language]}
-                        </span>
+                        Full Name
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.fullName}
@@ -1141,10 +1089,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Name with Initials /{" "}
-                        <span className="font-normal">
-                          {translations.nameWithInitials[language]}
-                        </span>
+                        Name with Initials
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.nameWithInitials}
@@ -1152,10 +1097,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Date of Birth /{" "}
-                        <span className="font-normal">
-                          {translations.dateOfBirth[language]}
-                        </span>
+                        Date of Birth
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.dateOfBirth}
@@ -1163,10 +1105,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Gender /{" "}
-                        <span className="font-normal">
-                          {translations.gender[language]}
-                        </span>
+                        Gender
                       </p>
                       <div className="mt-0.5 flex items-center gap-4">
                         {[
@@ -1187,27 +1126,18 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        NIC /{" "}
-                        <span className="font-normal">
-                          {translations.nic[language]}
-                        </span>
+                        NIC
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.nic}
                       </p>
                     </div>
                     <div className="col-span-2 mt-2 font-semibold">
-                      3. Contact Information /{" "}
-                      <span className="font-normal text-slate-700">
-                        {translations.contactInfo[language]}
-                      </span>
+                      3. Contact Information
                     </div>
                     <div className="col-span-2">
                       <p className="font-semibold">
-                        Address /{" "}
-                        <span className="font-normal">
-                          {translations.address[language]}
-                        </span>
+                        Address
                       </p>
                       <p className="mt-0.5 min-h-[32px] whitespace-pre-line border border-slate-300 px-1 py-1">
                         {values.address}
@@ -1215,10 +1145,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Mobile Number /{" "}
-                        <span className="font-normal">
-                          {translations.mobileNumber[language]}
-                        </span>
+                        Mobile Number
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.mobileNumber}
@@ -1226,10 +1153,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Email Address /{" "}
-                        <span className="font-normal">
-                          {translations.email[language]}
-                        </span>
+                        Email Address
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.email}
@@ -1237,10 +1161,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Emergency Contact Name /{" "}
-                        <span className="font-normal">
-                          {translations.emergencyContactName[language]}
-                        </span>
+                        Emergency Contact Name
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.emergencyContactName}
@@ -1248,10 +1169,7 @@ export function RegistrationForm() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        Emergency Contact Number /{" "}
-                        <span className="font-normal">
-                          {translations.emergencyContactNumber[language]}
-                        </span>
+                        Emergency Contact Number
                       </p>
                       <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                         {values.emergencyContactNumber}
@@ -1262,18 +1180,12 @@ export function RegistrationForm() {
                   {/* 4. Education Background */}
                   <div>
                     <p className="font-semibold">
-                      4. Education Background /{" "}
-                      <span className="font-normal text-slate-700">
-                        {translations.educationBackground[language]}
-                      </span>
+                      4. Education Background
                     </p>
                     <div className="mt-1 grid grid-cols-2 gap-3">
                       <div>
                         <p className="font-semibold">
-                          School / Institution /{" "}
-                          <span className="font-normal">
-                            {translations.schoolInstitution[language]}
-                          </span>
+                          School / Institution
                         </p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.schoolInstitution}
@@ -1281,12 +1193,7 @@ export function RegistrationForm() {
                       </div>
                       <div>
                         <p className="font-semibold">
-                          Highest Education Qualification /{" "}
-                          <span className="font-normal">
-                            {translations.highestEducationQualification[
-                              language
-                            ]}
-                          </span>
+                          Highest Education Qualification
                         </p>
                         <div className="mt-0.5 flex flex-wrap gap-3">
                           {[
@@ -1312,33 +1219,20 @@ export function RegistrationForm() {
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <p className="font-semibold">
-                          Qualification 1 /{" "}
-                          <span className="font-normal">
-                            {translations.qualification1[language]}
-                          </span>
-                        </p>
+                        <p className="font-semibold">Qualification 1</p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.qualification1}
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <p className="font-semibold">
-                          Qualification 2 /{" "}
-                          <span className="font-normal">
-                            {translations.qualification2[language]}
-                          </span>
-                        </p>
+                        <p className="font-semibold">Qualification 2</p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.qualification2}
                         </p>
                       </div>
                       <div className="col-span-2">
                         <p className="font-semibold">
-                          Other Education Qualification /{" "}
-                          <span className="font-normal">
-                            {translations.otherEducationQualification[language]}
-                          </span>
+                          Other Education Qualification
                         </p>
                         <p className="mt-0.5 min-h-[32px] whitespace-pre-line border border-slate-300 px-1 py-1">
                           {values.otherEducationQualification}
@@ -1350,18 +1244,12 @@ export function RegistrationForm() {
                   {/* 5. Payment Information */}
                   <div>
                     <p className="font-semibold">
-                      5. Payment Information /{" "}
-                      <span className="font-normal text-slate-700">
-                        {translations.paymentInfo[language]}
-                      </span>
+                      5. Payment Information
                     </p>
                     <div className="mt-1 grid grid-cols-2 gap-3">
                       <div>
                         <p className="font-semibold">
-                          Payment Method /{" "}
-                          <span className="font-normal">
-                            {translations.paymentMethod[language]}
-                          </span>
+                          Payment Method
                         </p>
                         <div className="mt-0.5 space-y-1">
                           <div className="flex items-center gap-1 text-[11px]">
@@ -1369,7 +1257,7 @@ export function RegistrationForm() {
                               {values.paymentMethod === "cash" ? "✓" : ""}
                             </span>
                             <span>
-                              Cash / {translations.cash[language]}
+                              Cash
                             </span>
                           </div>
                           <div className="flex items-center gap-1 text-[11px]">
@@ -1379,35 +1267,26 @@ export function RegistrationForm() {
                                 : ""}
                             </span>
                             <span>
-                              Bank Transfer / {translations.bankTransfer[language]}
+                              Bank Transfer
                             </span>
                           </div>
                         </div>
                       </div>
                       <div>
                         <p className="font-semibold">
-                          Amount Paid /{" "}
-                          <span className="font-normal">
-                            {translations.amountPaid[language]}
-                          </span>
+                          Amount Paid
                         </p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.amountPaid}
                         </p>
                         <p className="mt-2 font-semibold">
-                          Receipt Number /{" "}
-                          <span className="font-normal">
-                            {translations.receiptNumber[language]}
-                          </span>
+                          Receipt Number
                         </p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.receiptNumber}
                         </p>
                         <p className="mt-2 font-semibold">
-                          Bank / Branch (if applicable) /{" "}
-                          <span className="font-normal">
-                            {translations.bankBranch[language]}
-                          </span>
+                          Bank / Branch (if applicable)
                         </p>
                         <p className="mt-0.5 min-h-[18px] border-b border-slate-300">
                           {values.bankBranch}
@@ -1419,18 +1298,12 @@ export function RegistrationForm() {
                   {/* 6. Declaration */}
                   <div className="mt-2 border-t border-slate-200 pt-2 text-[11px]">
                     <p className="font-semibold">
-                      6. Declaration /{" "}
-                      <span className="font-normal text-slate-700">
-                        {translations.declaration[language]}
-                      </span>
+                      6. Declaration
                     </p>
                     <p className="mt-1 text-slate-800">
                       I hereby declare that the above information is true and
                       correct. I understand that any false information may
                       result in the cancellation of my enrollment.
-                    </p>
-                    <p className="mt-1 text-slate-800">
-                      {translations.declarationParagraph[language]}
                     </p>
                     <div className="mt-3 grid grid-cols-3 gap-3">
                       <div>
@@ -1681,15 +1554,12 @@ export function RegistrationForm() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2d4084]/10 text-sm font-medium text-[#2d4084]">
             6
           </span>
-          Declaration / <span className="font-normal text-slate-600">{translations.declaration[language]}</span>
+          Declaration
         </h2>
         <p className="text-sm text-slate-700">
           I hereby declare that the above information is true and correct. I
           understand that any false information may result in the cancellation of
           my enrollment.
-        </p>
-        <p className="mt-1 text-sm text-slate-700">
-          {translations.declarationParagraph[language]}
         </p>
         <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 transition-colors hover:bg-slate-50">
           <input

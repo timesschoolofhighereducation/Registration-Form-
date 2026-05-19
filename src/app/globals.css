@@ -30,3 +30,17 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+  }
+}
