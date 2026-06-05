@@ -321,13 +321,16 @@ export function RegistrationForm() {
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           <fieldset className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
             <legend className="text-sm font-semibold text-slate-800">
-              Undergraduate Programmes
+            Business and Innovation
             </legend>
             {[
-              ["BBA", "Bachelor of Business Administration"],
-              ["BTL", "Bachelor of Transportation and Logistics"],
-              ["BSCM", "Bachelor of Supply Chain Management"],
-              ["BIT", "Bachelor of Information and Technology"],
+                ["ACBM", "Advanced certificate in Business Management"],
+                ["ACSDM", "Advanced certificate in Sales and Digital Marketing"],
+                ["ACHR", "Advanced certificate in Human Resource Management"],
+                ["DBM", "Diploma in Business Management"],
+                ["DSM", "Diploma in Sales and Marketing"],
+                ["DHR", "Diploma in Human Resource Management"],
+                ["HDBM", "Higher Diploma in Business Nanagement"],
             ].map(([value, label]) => (
               <label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
