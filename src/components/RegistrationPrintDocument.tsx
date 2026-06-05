@@ -76,13 +76,16 @@ export function RegistrationPrintDocument({ registration: r }: Props) {
           
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <p className="font-semibold">Undergraduate Programmes</p>
+              <p className="font-semibold">Business and Innovation</p>
               <ul className="mt-0.5 space-y-0.5">
                 {[
-                  ["BBA", "Bachelor of Business Administration"],
-                  ["BTL", "Bachelor of Transportation and Logistics"],
-                  ["BSCM", "Bachelor of Supply Chain Management"],
-                  ["BIT", "Bachelor of Information and Technology"],
+                  ["ACBM", "Advanced certificate in Business Management"],
+                  ["ACSDM", "Advanced certificate in Sales and Digital Marketing"],
+                  ["ACHR", "Advanced certificate in Human Resource Management"],
+                  ["DBM", "Diploma in Business Management"],
+                  ["DSM", "Diploma in Sales and Marketing"],
+                  ["DHR", "Diploma in Human Resource Management"],
+                  ["HDBM", "Higher Diploma in Business Nanagement"],
                 ].map(([code, label]) => (
                   <li key={code} className="flex items-center gap-1">
                     <Check checked={r.programme_name === code} />
