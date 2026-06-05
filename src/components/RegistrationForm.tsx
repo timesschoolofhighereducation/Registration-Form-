@@ -315,7 +315,7 @@ export function RegistrationForm() {
     >
       <header className="flex flex-col items-center text-center">
         <img
-          src="/tshelogo.jpg"
+          src="/tshelogo.png"
           alt="TIMES School of Higher Education"
           className="mb-4 h-20 w-auto object-contain sm:h-24"
         />
@@ -858,7 +858,7 @@ export function RegistrationForm() {
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
               <div className="flex items-center gap-3">
                 <img
-                  src="/tshelogo.jpg"
+                  src="/tshelogo.png"
                   alt="TIMES School of Higher Education"
                   className="h-8 w-auto object-contain"
                 />
@@ -890,7 +890,7 @@ export function RegistrationForm() {
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <img
-                        src="/tshelogo.jpg"
+                        src="/tshelogo.png"
                         alt="TIMES School of Higher Education"
                         className="h-8 w-auto object-contain"
                       />

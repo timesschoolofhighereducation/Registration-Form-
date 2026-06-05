@@ -62,7 +62,7 @@ export function RegistrationPrintDocument({ registration: r, categories }: Props
           <div className="mt-1 flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/tshelogo.jpg"
+              src="/tshelogo.png"
               alt="TIMES School of Higher Education"
               className="h-8 w-auto object-contain"
             />
