@@ -7,8 +7,8 @@ import { registrationSchema } from "@/lib/validation";
 type FieldErrors = Partial<Record<keyof RegistrationInput, string>>;
 
 const initialValues: RegistrationInput = {
-  programmeCategory: "undergraduate",
-  programmeName: "BBA",
+  programmeCategory: "",
+  programmeName: "",
   fullName: "",
   nameWithInitials: "",
   dateOfBirth: "",
@@ -33,7 +33,40 @@ const initialValues: RegistrationInput = {
   applicantSigned: true,
 };
 
+interface Program {
+  id: number;
+  code: string;
+  name: string;
+  category_code: string;
+}
+
+interface ProgramCategory {
+  id: number;
+  code: string;
+  name: string;
+  programs: Program[];
+}
+
 export function RegistrationForm() {
+  const [categories, setCategories] = useState<ProgramCategory[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+
+  useEffect(() => {
+    async function fetchPrograms() {
+      try {
+        const res = await fetch("/api/programs");
+        const data = await res.json();
+        if (data.ok && data.categories) {
+          setCategories(data.categories);
+        }
+      } catch (error) {
+        console.error("Failed to load programs:", error);
+      } finally {
+        setLoadingPrograms(false);
+      }
+    }
+    fetchPrograms();
+  }, []);
   const [values, setValues] = useState<RegistrationInput>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -319,137 +352,42 @@ export function RegistrationForm() {
         </p>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <fieldset className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-            <legend className="text-sm font-semibold text-slate-800">
-            Business and Innovation
-            </legend>
-            {[
-                ["ACBM", "Advanced certificate in Business Management"],
-                ["ACSDM", "Advanced certificate in Sales and Digital Marketing"],
-                ["ACHR", "Advanced certificate in Human Resource Management"],
-                ["DBM", "Diploma in Business Management"],
-                ["DSM", "Diploma in Sales and Marketing"],
-                ["DHR", "Diploma in Human Resource Management"],
-                ["HDBM", "Higher Diploma in Business Nanagement"],
-            ].map(([value, label]) => (
-              <label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="programmeName"
-                  value={value}
-                  checked={values.programmeName === value}
-                  onChange={(e) => {
-                    handleChange(e);
-                    setValues((prev) => ({
-                      ...prev,
-                      programmeCategory: "undergraduate",
-                    }));
-                  }}
-                  className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </fieldset>
-
-          <div className="space-y-4">
-            <fieldset className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-              <legend className="text-sm font-semibold text-slate-800">
-                Postgraduate Programmes
-              </legend>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="programmeName"
-                  value="MBA"
-                  checked={values.programmeName === "MBA"}
-                  onChange={(e) => {
-                    handleChange(e);
-                    setValues((prev) => ({
-                      ...prev,
-                      programmeCategory: "postgraduate",
-                    }));
-                  }}
-                  className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
-                />
-                <span>Master of Business Administration</span>
-              </label>
-            </fieldset>
-
-            <fieldset className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-              <legend className="text-sm font-semibold text-slate-800">
-                Diploma / Certificate Programmes
-              </legend>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="programmeName"
-                  value="Diploma_Professional_English_Digital_Skills"
-                  checked={
-                    values.programmeName ===
-                    "Diploma_Professional_English_Digital_Skills"
-                  }
-                  onChange={(e) => {
-                    handleChange(e);
-                    setValues((prev) => ({
-                      ...prev,
-                      programmeCategory: "diploma_certificate",
-                    }));
-                  }}
-                  className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
-                />
-                <span>
-                  Diploma in Professional English and Digital Skills
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="programmeName"
-                  value="AdvCert_Professional_Communication_Digital_Skills_School_Leaders"
-                  checked={
-                    values.programmeName ===
-                    "AdvCert_Professional_Communication_Digital_Skills_School_Leaders"
-                  }
-                  onChange={(e) => {
-                    handleChange(e);
-                    setValues((prev) => ({
-                      ...prev,
-                      programmeCategory: "diploma_certificate",
-                    }));
-                  }}
-                  className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
-                />
-                <span>
-                  Advanced Certificate in Professional Communication and Digital
-                  Skills for School Leaders
-                </span>
-              </label>
-            </fieldset>
-
-            <fieldset className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-              <legend className="text-sm font-semibold text-slate-800">
-                Languages
-              </legend>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="programmeName"
-                  value="Cambridge_Linguaskill"
-                  checked={values.programmeName === "Cambridge_Linguaskill"}
-                  onChange={(e) => {
-                    handleChange(e);
-                    setValues((prev) => ({
-                      ...prev,
-                      programmeCategory: "languages",
-                    }));
-                  }}
-                  className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
-                />
-                <span>Cambridge Linguaskill</span>
-              </label>
-            </fieldset>
-          </div>
+          {loadingPrograms ? (
+            <p className="col-span-2 text-center text-sm text-slate-500 py-4 animate-pulse">Loading programmes…</p>
+          ) : categories.length === 0 ? (
+            <p className="col-span-2 text-center text-sm text-slate-500 py-4">No programmes available.</p>
+          ) : (
+            categories.map((cat) => (
+              <fieldset key={cat.code} className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                <legend className="text-sm font-semibold text-slate-800 px-1">
+                  {cat.name}
+                </legend>
+                {cat.programs.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No programmes in this category</p>
+                ) : (
+                  cat.programs.map((prog) => (
+                    <label key={prog.code} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="programmeName"
+                        value={prog.code}
+                        checked={values.programmeName === prog.code}
+                        onChange={(e) => {
+                          handleChange(e);
+                          setValues((prev) => ({
+                            ...prev,
+                            programmeCategory: cat.code,
+                          }));
+                        }}
+                        className="h-4 w-4 border-slate-300 text-[#2d4084] focus:ring-[#2d4084]"
+                      />
+                      <span>{prog.name}</span>
+                    </label>
+                  ))
+                )}
+              </fieldset>
+            ))
+          )}
         </div>
         {renderError("programmeName")}
       </section>
@@ -975,86 +913,52 @@ export function RegistrationForm() {
                     <p className="font-semibold">
                       1. Programme Selection
                     </p>
-                    <div className="mt-1 grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="font-semibold text-[11px]">
-                          Undergraduate Programmes
-                        </p>
-                        <ul className="mt-0.5 space-y-0.5">
-                          {[
-                            ["BBA", "Bachelor of Business Administration"],
-                            ["BTL", "Bachelor of Transportation and Logistics"],
-                            ["BSCM", "Bachelor of Supply Chain Management"],
-                            ["BIT", "Bachelor of Information and Technology"],
-                          ].map(([code, label]) => (
-                            <li key={code} className="flex items-center gap-1">
-                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
-                                {values.programmeName === code ? "✓" : ""}
-                              </span>
-                              <span>{label}</span>
-                            </li>
+                    {loadingPrograms ? (
+                      <p className="text-[10px] text-slate-500">Loading programmes…</p>
+                    ) : categories.length === 0 ? (
+                      <p className="text-[10px] text-slate-500">No programmes available.</p>
+                    ) : (
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          {categories.slice(0, Math.ceil(categories.length / 2)).map((cat) => (
+                            <div key={cat.code}>
+                              <p className="font-semibold text-[10px] text-slate-700">
+                                {cat.name}
+                              </p>
+                              <ul className="mt-0.5 space-y-0.5">
+                                {cat.programs.map((prog) => (
+                                  <li key={prog.code} className="flex items-center gap-1">
+                                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                      {values.programmeName === prog.code ? "✓" : ""}
+                                    </span>
+                                    <span>{prog.name}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           ))}
-                        </ul>
-                      </div>
-                      <div className="space-y-1">
-                        <div>
-                          <p className="font-semibold text-[11px]">
-                            Postgraduate Programmes
-                          </p>
-                          <div className="mt-0.5 flex items-center gap-1">
-                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
-                              {values.programmeName === "MBA" ? "✓" : ""}
-                            </span>
-                            <span>Master of Business Administration</span>
-                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-[11px]">
-                            Diploma Programmes / Certificate Programmes
-                          </p>
-                          <ul className="mt-0.5 space-y-0.5">
-                            <li className="flex items-center gap-1">
-                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
-                                {values.programmeName ===
-                                "Diploma_Professional_English_Digital_Skills"
-                                  ? "✓"
-                                  : ""}
-                              </span>
-                              <span>
-                                Diploma in Professional English and Digital
-                                Skills
-                              </span>
-                            </li>
-                            <li className="flex items-center gap-1">
-                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
-                                {values.programmeName ===
-                                "AdvCert_Professional_Communication_Digital_Skills_School_Leaders"
-                                  ? "✓"
-                                  : ""}
-                              </span>
-                              <span>
-                                Advanced Certificate in Professional
-                                Communication and Digital Skills for School
-                                Leaders
-                              </span>
-                            </li>
-                          </ul>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[11px]">
-                            Languages
-                          </p>
-                          <div className="mt-0.5 flex items-center gap-1">
-                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
-                              {values.programmeName === "Cambridge_Linguaskill"
-                                ? "✓"
-                                : ""}
-                            </span>
-                            <span>Cambridge Linguaskill</span>
-                          </div>
+                        <div className="space-y-1">
+                          {categories.slice(Math.ceil(categories.length / 2)).map((cat) => (
+                            <div key={cat.code}>
+                              <p className="font-semibold text-[10px] text-slate-700">
+                                {cat.name}
+                              </p>
+                              <ul className="mt-0.5 space-y-0.5">
+                                {cat.programs.map((prog) => (
+                                  <li key={prog.code} className="flex items-center gap-1">
+                                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                                      {values.programmeName === prog.code ? "✓" : ""}
+                                    </span>
+                                    <span>{prog.name}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* 2 & 3. Personal + Contact Information */}

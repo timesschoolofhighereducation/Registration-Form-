@@ -1,22 +1,8 @@
 import { z } from "zod";
 
 export const registrationSchema = z.object({
-  programmeCategory: z.enum([
-    "undergraduate",
-    "postgraduate",
-    "diploma_certificate",
-    "languages",
-  ]),
-  programmeName: z.enum([
-    "BBA",
-    "BTL",
-    "BSCM",
-    "BIT",
-    "MBA",
-    "Diploma_Professional_English_Digital_Skills",
-    "AdvCert_Professional_Communication_Digital_Skills_School_Leaders",
-    "Cambridge_Linguaskill",
-  ]),
+  programmeCategory: z.string().min(1, "Programme category is required"),
+  programmeName: z.string().min(1, "Programme name is required"),
   fullName: z.string().min(1, "Full name is required"),
   nameWithInitials: z.string().min(1, "Name with initials is required"),
   dateOfBirth: z

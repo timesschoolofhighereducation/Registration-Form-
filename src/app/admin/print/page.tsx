@@ -14,6 +14,7 @@ function PrintContent() {
   const [registration, setRegistration] = useState<StudentRegistrationRow | null>(
     null
   );
+  const [categories, setCategories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const hasPrinted = useRef(false);
@@ -27,17 +28,28 @@ function PrintContent() {
 
     void (async () => {
       try {
-        const res = await fetch(`/api/admin/registrations?id=${id}`);
-        const data = await res.json();
-        if (!res.ok) {
-          if (res.status === 401) {
+        const [regRes, progRes] = await Promise.all([
+          fetch(`/api/admin/registrations?id=${id}`),
+          fetch(`/api/programs`)
+        ]);
+
+        const regData = await regRes.json();
+        const progData = await progRes.json();
+
+        if (!regRes.ok) {
+          if (regRes.status === 401) {
             router.push("/admin/login");
             return;
           }
-          throw new Error(data.message ?? "Failed to load registration");
+          throw new Error(regData.message ?? "Failed to load registration");
         }
-        setRegistration(data.registration);
-        const name = data.registration.full_name as string;
+
+        setRegistration(regData.registration);
+        if (progData.ok && progData.categories) {
+          setCategories(progData.categories);
+        }
+
+        const name = regData.registration.full_name as string;
         document.title = `Registration-${id}-${name.replace(/[^\w.-]+/g, "_")}`;
       } catch (err) {
         setError(
@@ -94,7 +106,7 @@ function PrintContent() {
           Close
         </button>
       </div>
-      <RegistrationPrintDocument registration={registration} />
+      <RegistrationPrintDocument registration={registration} categories={categories} />
     </>
   );
 }

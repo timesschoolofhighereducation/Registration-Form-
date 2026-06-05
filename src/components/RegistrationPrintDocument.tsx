@@ -3,6 +3,14 @@ import { labelProgrammeName } from "@/lib/registrationLabels";
 
 type Props = {
   registration: StudentRegistrationRow;
+  categories?: {
+    code: string;
+    name: string;
+    programs: {
+      code: string;
+      name: string;
+    }[];
+  }[];
 };
 
 function Check({ checked }: { checked: boolean }) {
@@ -38,7 +46,7 @@ function Field({
   );
 }
 
-export function RegistrationPrintDocument({ registration: r }: Props) {
+export function RegistrationPrintDocument({ registration: r, categories }: Props) {
   const amountPaid =
     r.amount_paid != null
       ? r.amount_paid.toLocaleString("en-LK", { minimumFractionDigits: 2 })
@@ -74,76 +82,45 @@ export function RegistrationPrintDocument({ registration: r }: Props) {
         <section>
           <p className="font-semibold">1. Programme Selection</p>
           
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            <div>
-              <p className="font-semibold">Business and Innovation</p>
-              <ul className="mt-0.5 space-y-0.5">
-                {[
-                  ["ACBM", "Advanced certificate in Business Management"],
-                  ["ACSDM", "Advanced certificate in Sales and Digital Marketing"],
-                  ["ACHR", "Advanced certificate in Human Resource Management"],
-                  ["DBM", "Diploma in Business Management"],
-                  ["DSM", "Diploma in Sales and Marketing"],
-                  ["DHR", "Diploma in Human Resource Management"],
-                  ["HDBM", "Higher Diploma in Business Nanagement"],
-                ].map(([code, label]) => (
-                  <li key={code} className="flex items-center gap-1">
-                    <Check checked={r.programme_name === code} />
-                    <span>{label}</span>
-                  </li>
+          {!categories || categories.length === 0 ? (
+            <div className="mt-1 border border-slate-200 bg-slate-50 p-2 rounded">
+              <span className="font-semibold text-slate-500">Selected Programme: </span>
+              <span className="font-bold text-[#2d4084]">{labelProgrammeName(r.programme_name)}</span>
+            </div>
+          ) : (
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                {categories.slice(0, Math.ceil(categories.length / 2)).map((cat) => (
+                  <div key={cat.code}>
+                    <p className="font-semibold text-slate-800">{cat.name}</p>
+                    <ul className="mt-0.5 space-y-0.5">
+                      {cat.programs.map((prog) => (
+                        <li key={prog.code} className="flex items-center gap-1">
+                          <Check checked={r.programme_name === prog.code} />
+                          <span>{prog.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
-            </div>
-            <div className="space-y-1">
-              
-              <div>
-                <p className="font-semibold">Postgraduate Programmes</p>
-                
-                
-                <div className="mt-0.5 flex items-center gap-1">
-                  <Check checked={r.programme_name === "MBA"} />
-                  <span>Master of Business Administration</span>
-                </div>
               </div>
-              <div>
-                <p className="font-semibold">
-                  Diploma Programmes / Certificate Programmes
-                </p>
-                <ul className="mt-0.5 space-y-0.5">
-                  <li className="flex items-center gap-1">
-                    <Check
-                      checked={
-                        r.programme_name ===
-                        "Diploma_Professional_English_Digital_Skills"
-                      }
-                    />
-                    <span>
-                      Diploma in Professional English and Digital Skills
-                    </span>
-                  </li>
-                  <li className="flex items-center gap-1">
-                    <Check
-                      checked={
-                        r.programme_name ===
-                        "AdvCert_Professional_Communication_Digital_Skills_School_Leaders"
-                      }
-                    />
-                    <span>
-                      Advanced Certificate in Professional Communication and
-                      Digital Skills for School Leaders
-                    </span>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-semibold">Languages</p>
-                <div className="mt-0.5 flex items-center gap-1">
-                  <Check checked={r.programme_name === "Cambridge_Linguaskill"} />
-                  <span>Cambridge Linguaskill</span>
-                </div>
+              <div className="space-y-1">
+                {categories.slice(Math.ceil(categories.length / 2)).map((cat) => (
+                  <div key={cat.code}>
+                    <p className="font-semibold text-slate-800">{cat.name}</p>
+                    <ul className="mt-0.5 space-y-0.5">
+                      {cat.programs.map((prog) => (
+                        <li key={prog.code} className="flex items-center gap-1">
+                          <Check checked={r.programme_name === prog.code} />
+                          <span>{prog.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
         </section>
 
         <section className="grid grid-cols-2 gap-x-6 gap-y-2">

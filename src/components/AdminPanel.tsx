@@ -74,6 +74,7 @@ export function AdminPanel() {
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const limit = 25;
+  const [activeTab, setActiveTab] = useState<"registrations" | "programs">("registrations");
 
   const loadRegistrations = useCallback(
     async (nextPage: number, term: string) => {
@@ -233,10 +234,38 @@ export function AdminPanel() {
           </div>
         </div>
 
-        <form
-          onSubmit={handleSearch}
-          className="mt-6 flex flex-col gap-2 sm:flex-row"
-        >
+        {/* Tab switcher */}
+        <div className="mt-6 flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab("registrations")}
+            className={`pb-3 text-sm font-semibold border-b-2 px-4 transition-all duration-200 ${
+              activeTab === "registrations"
+                ? "border-[#2d4084] text-[#2d4084]"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Registrations
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("programs")}
+            className={`pb-3 text-sm font-semibold border-b-2 px-4 transition-all duration-200 ${
+              activeTab === "programs"
+                ? "border-[#2d4084] text-[#2d4084]"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Manage Programs
+          </button>
+        </div>
+
+        {activeTab === "registrations" ? (
+          <>
+            <form
+              onSubmit={handleSearch}
+              className="mt-6 flex flex-col gap-2 sm:flex-row"
+            >
           <input
             type="search"
             placeholder="Search by name, NIC, email, mobile, or programme…"
@@ -378,6 +407,10 @@ export function AdminPanel() {
             </button>
           </div>
         </div>
+          </>
+        ) : (
+          <ManagePrograms />
+        )}
       </div>
 
       {selectedId != null && (
@@ -591,6 +624,334 @@ function DetailRow({
       <dd className="font-medium text-slate-900">
         {value?.trim() ? value : "—"}
       </dd>
+    </div>
+  );
+}
+
+function ManagePrograms() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Forms state
+  const [catForm, setCatForm] = useState({ id: null as number | null, code: "", name: "" });
+  const [progForm, setProgForm] = useState({ id: null as number | null, category_code: "", code: "", name: "" });
+
+  const [savingCat, setSavingCat] = useState(false);
+  const [savingProg, setSavingProg] = useState(false);
+
+  const fetchProgramsData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/programs");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to load programs");
+      setCategories(data.categories || []);
+      setPrograms(data.programs || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchProgramsData();
+  }, []);
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catForm.code.trim() || !catForm.name.trim()) return;
+    setSavingCat(true);
+    try {
+      const res = await fetch("/api/admin/programs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_category",
+          payload: catForm
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save category");
+      setCatForm({ id: null, code: "", name: "" });
+      void fetchProgramsData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error saving category");
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const handleSaveProgram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!progForm.category_code.trim() || !progForm.code.trim() || !progForm.name.trim()) return;
+    setSavingProg(true);
+    try {
+      const res = await fetch("/api/admin/programs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_program",
+          payload: progForm
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save program");
+      setProgForm({ id: null, category_code: "", code: "", name: "" });
+      void fetchProgramsData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error saving program");
+    } finally {
+      setSavingProg(false);
+    }
+  };
+
+  const handleDelete = async (type: "category" | "program", id: number) => {
+    if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/programs?type=${type}&id=${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete");
+      void fetchProgramsData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error deleting");
+    }
+  };
+
+  return (
+    <div className="mt-8 space-y-8">
+      {error && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-slate-500 animate-pulse text-sm">Loading programs management…</p>
+        </div>
+      ) : (
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Categories management */}
+          <div className="space-y-6">
+            <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-5">
+              <h2 className="text-lg font-bold text-[#2d4084] mb-4">
+                {catForm.id ? "Edit Section / Category" : "Add Section / Category"}
+              </h2>
+              <form onSubmit={handleSaveCategory} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Section Code (e.g. undergraduate)
+                  </label>
+                  <input
+                    type="text"
+                    value={catForm.code}
+                    disabled={!!catForm.id}
+                    onChange={(e) => setCatForm(prev => ({ ...prev, code: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d4084] focus:ring-1 focus:ring-[#2d4084]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Section Display Name (e.g. Business and Innovation)
+                  </label>
+                  <input
+                    type="text"
+                    value={catForm.name}
+                    onChange={(e) => setCatForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d4084] focus:ring-1 focus:ring-[#2d4084]"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  {catForm.id && (
+                    <button
+                      type="button"
+                      onClick={() => setCatForm({ id: null, code: "", name: "" })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={savingCat}
+                    className="rounded-lg bg-[#2d4084] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#243366] disabled:opacity-50"
+                  >
+                    {savingCat ? "Saving…" : catForm.id ? "Update" : "Add Section"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Code</th>
+                    <th className="px-4 py-3">Section Name</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {categories.map((cat) => (
+                    <tr key={cat.id} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{cat.code}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{cat.name}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setCatForm({ id: cat.id, code: cat.code, name: cat.name })}
+                            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete("category", cat.id)}
+                            className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Programs management */}
+          <div className="space-y-6">
+            <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-5">
+              <h2 className="text-lg font-bold text-[#2d4084] mb-4">
+                {progForm.id ? "Edit Program" : "Add Program"}
+              </h2>
+              <form onSubmit={handleSaveProgram} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Select Section / Category
+                  </label>
+                  <select
+                    value={progForm.category_code}
+                    onChange={(e) => setProgForm(prev => ({ ...prev, category_code: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d4084] focus:ring-1 focus:ring-[#2d4084]"
+                    required
+                  >
+                    <option value="">-- Choose Category --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.code}>
+                        {cat.name} ({cat.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Program Code (e.g. BBA, MBA, ACBM)
+                  </label>
+                  <input
+                    type="text"
+                    value={progForm.code}
+                    disabled={!!progForm.id}
+                    onChange={(e) => setProgForm(prev => ({ ...prev, code: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d4084] focus:ring-1 focus:ring-[#2d4084]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    Program Name (e.g. Bachelor of Business Administration)
+                  </label>
+                  <input
+                    type="text"
+                    value={progForm.name}
+                    onChange={(e) => setProgForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d4084] focus:ring-1 focus:ring-[#2d4084]"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  {progForm.id && (
+                    <button
+                      type="button"
+                      onClick={() => setProgForm({ id: null, category_code: "", code: "", name: "" })}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={savingProg}
+                    className="rounded-lg bg-[#2d4084] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#243366] disabled:opacity-50"
+                  >
+                    {savingProg ? "Saving…" : progForm.id ? "Update" : "Add Program"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Section</th>
+                    <th className="px-4 py-3">Code</th>
+                    <th className="px-4 py-3">Program Name</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {programs.map((prog) => {
+                    const cat = categories.find((c) => c.code === prog.category_code);
+                    return (
+                      <tr key={prog.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3 text-slate-600 text-xs font-semibold">{cat ? cat.name : prog.category_code}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500">{prog.code}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{prog.name}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProgForm({
+                                  id: prog.id,
+                                  category_code: prog.category_code,
+                                  code: prog.code,
+                                  name: prog.name,
+                                })
+                              }
+                              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete("program", prog.id)}
+                              className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
