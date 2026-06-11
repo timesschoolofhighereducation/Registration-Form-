@@ -227,6 +227,10 @@ export function RegistrationPrintDocument({ registration: r, categories }: Props
                   <Check checked={r.payment_method === "bank_transfer"} />
                   <span>Bank Transfer</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <Check checked={r.payment_method === "cash_deposit"} />
+                  <span>Cash Deposit</span>
+                </div>
               </div>
             </div>
             <div>

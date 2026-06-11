@@ -30,6 +30,7 @@ const educationLabels: Record<string, string> = {
 const paymentLabels: Record<string, string> = {
   cash: "Cash",
   bank_transfer: "Bank Transfer",
+  cash_deposit: "Cash Deposit",
 };
 
 export function labelProgrammeCategory(value: string) {

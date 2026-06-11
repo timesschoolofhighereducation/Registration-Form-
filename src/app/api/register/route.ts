@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       qualification_2: data.qualification2 ?? null,
       other_education_qualification: data.otherEducationQualification ?? null,
       payment_method: data.paymentMethod,
-      amount_paid: data.amountPaid ? Number(data.amountPaid) : null,
+      amount_paid: data.amountPaid && data.amountPaid.trim() !== "" ? Number(data.amountPaid) : null,
       receipt_number: data.receiptNumber?.trim() || null,
       bank_branch: data.bankBranch?.trim() || null,
       applicant_signed: data.applicantSigned,

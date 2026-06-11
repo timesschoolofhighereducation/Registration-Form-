@@ -728,6 +728,7 @@ export function RegistrationForm() {
               {[
                 ["cash", "Cash"],
                 ["bank_transfer", "Bank Transfer"],
+                ["cash_deposit", "Cash Deposit"],
               ].map(([value, label]) => (
                 <label key={value} className="flex items-center gap-2">
                   <input
@@ -1190,6 +1191,16 @@ export function RegistrationForm() {
                             </span>
                             <span>
                               Bank Transfer
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-sm border border-slate-400 text-[9px]">
+                              {values.paymentMethod === "cash_deposit"
+                                ? "✓"
+                                : ""}
+                            </span>
+                            <span>
+                              Cash Deposit
                             </span>
                           </div>
                         </div>
