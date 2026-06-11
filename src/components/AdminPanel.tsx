@@ -175,6 +175,7 @@ export function AdminPanel() {
       "Mobile",
       "Payment",
       "Amount Paid",
+      "Remarks",
     ];
     const rows = registrations.map((row) => [
       row.id,
@@ -186,6 +187,7 @@ export function AdminPanel() {
       row.mobile_number,
       labelPayment(row.payment_method),
       row.amount_paid ?? "",
+      row.remarks ?? "",
     ]);
     const csv = [headers, ...rows]
       .map((line) => line.map(csvEscape).join(","))
@@ -540,6 +542,7 @@ export function AdminPanel() {
                     />
                     <DetailRow label="Receipt number" value={detail.receipt_number} />
                     <DetailRow label="Bank branch" value={detail.bank_branch} />
+                    <DetailRow label="Remarks" value={detail.remarks} />
                   </DetailSection>
 
                   <DetailSection title="Meta">

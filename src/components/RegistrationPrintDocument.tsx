@@ -239,6 +239,11 @@ export function RegistrationPrintDocument({ registration: r, categories }: Props
               </div>
             </div>
           </div>
+          {r.remarks && (
+            <div className="mt-3">
+              <Field label="Remarks / Special Notes" value={r.remarks} multiline />
+            </div>
+          )}
         </section>
 
         <section className="mt-2 border-t border-slate-200 pt-2">

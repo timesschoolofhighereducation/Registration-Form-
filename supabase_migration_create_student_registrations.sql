@@ -44,6 +44,7 @@ create table if not exists public.student_registrations (
   -- Base64 data URLs (e.g. data:image/jpeg;base64,...); store profile and receipt images
   profile_image_base64 text,
   bank_receipt_base64 text,
+  remarks text,
 
   created_at timestamptz not null default now()
 );

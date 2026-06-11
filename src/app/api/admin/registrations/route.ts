@@ -7,7 +7,7 @@ import type {
 } from "@/types/registration";
 
 const LIST_COLUMNS =
-  "id, programme_category, programme_name, full_name, name_with_initials, date_of_birth, gender, nic, address, mobile_number, email, emergency_contact_name, emergency_contact_number, school_institution, highest_education_qualification, qualification_1, qualification_2, other_education_qualification, payment_method, amount_paid, receipt_number, bank_branch, applicant_signed, applicant_signed_at, ip_hash, created_at";
+  "id, programme_category, programme_name, full_name, name_with_initials, date_of_birth, gender, nic, address, mobile_number, email, emergency_contact_name, emergency_contact_number, school_institution, highest_education_qualification, qualification_1, qualification_2, other_education_qualification, payment_method, amount_paid, receipt_number, bank_branch, remarks, applicant_signed, applicant_signed_at, ip_hash, created_at";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthenticated())) {

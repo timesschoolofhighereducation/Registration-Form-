@@ -47,13 +47,14 @@ export async function POST(req: NextRequest) {
       other_education_qualification: data.otherEducationQualification ?? null,
       payment_method: data.paymentMethod,
       amount_paid: data.amountPaid ? Number(data.amountPaid) : null,
-      receipt_number: data.receiptNumber ?? null,
-      bank_branch: data.bankBranch ?? null,
+      receipt_number: data.receiptNumber?.trim() || null,
+      bank_branch: data.bankBranch?.trim() || null,
       applicant_signed: data.applicantSigned,
       applicant_signed_at: new Date().toISOString(),
       ip_hash: ip,
       profile_image_base64: data.profileImageBase64?.trim() || null,
       bank_receipt_base64: data.bankReceiptBase64?.trim() || null,
+      remarks: data.remarks?.trim() || null,
     });
 
     if (error) {

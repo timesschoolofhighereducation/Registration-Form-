@@ -26,6 +26,7 @@ export type StudentRegistrationRow = {
   ip_hash: string | null;
   profile_image_base64?: string | null;
   bank_receipt_base64?: string | null;
+  remarks?: string | null;
   created_at: string;
 };
 

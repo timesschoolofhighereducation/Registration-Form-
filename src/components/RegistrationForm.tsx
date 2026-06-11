@@ -30,6 +30,7 @@ const initialValues: RegistrationInput = {
   bankBranch: "",
   profileImageBase64: "",
   bankReceiptBase64: "",
+  remarks: "",
   applicantSigned: true,
 };
 
@@ -843,6 +844,20 @@ export function RegistrationForm() {
               )}
             </div>
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Remarks / Special Notes (optional)
+            </label>
+            <textarea
+              name="remarks"
+              value={values.remarks ?? ""}
+              onChange={handleChange}
+              rows={3}
+              className={`${inputClass} min-h-[80px] resize-y`}
+              placeholder="Enter any additional remarks or comments"
+            />
+            {renderError("remarks")}
+          </div>
         </div>
       </section>
 
@@ -1200,6 +1215,14 @@ export function RegistrationForm() {
                         </p>
                       </div>
                     </div>
+                    {values.remarks && (
+                      <div className="mt-2 border-t border-slate-100 pt-2">
+                        <p className="font-semibold">Remarks / Special Notes</p>
+                        <p className="mt-0.5 whitespace-pre-line border border-slate-300 px-1 py-1">
+                          {values.remarks}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* 6. Declaration */}

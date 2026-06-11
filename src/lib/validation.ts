@@ -53,6 +53,7 @@ export const registrationSchema = z.object({
     .string()
     .max(2_000_000, "Bank receipt image is too large")
     .optional(),
+  remarks: z.string().optional(),
   applicantSigned: z.literal(true, "You must accept the declaration"),
 });
 
